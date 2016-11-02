@@ -229,11 +229,11 @@ public class PassengerClient {
 		boolean success = false;
 		ticket = new Ticket();
 		if(departure == 1) {
-			ticket.setDeparture("MTL");
+			ticket.setDeparture("Montreal");
 		} else if(departure == 2) {
-			ticket.setDeparture("WST");
+			ticket.setDeparture("Washington");
 		} else if(departure == 3) {
-			ticket.setDeparture("NDL");
+			ticket.setDeparture("New Delhi");
 		}
 		switch (userChoice) {
 		case 1:

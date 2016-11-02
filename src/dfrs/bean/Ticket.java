@@ -1,6 +1,13 @@
 package dfrs.bean;
 
-public class Ticket {
+import java.io.Serializable;
+
+public class Ticket implements Serializable {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -3692494331856446999L;
+
 	private int recordID = 0;
 	
 	private String firstName = "";

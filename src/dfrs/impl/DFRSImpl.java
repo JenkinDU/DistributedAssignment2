@@ -10,6 +10,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import org.omg.CORBA.ORB;
 
@@ -19,6 +21,8 @@ import dfrs.bean.Flight;
 import dfrs.bean.Ticket;
 import dfrs.database.FlightData;
 import dfrs.database.TicketData;
+import dfrs.transaction.ITransaction;
+import dfrs.transaction.TransferReservation;
 import dfrs.utils.Log;
 import dfrs.utils.Utils;
 
@@ -30,12 +34,14 @@ class DFRSImpl extends DFRSPOA {
 	private String server;
 	private String name;
 	private int UDP_PORT;
+	private int T_UDP_PORT;
 	
-	protected DFRSImpl(String server, String name, int udp) {
+	protected DFRSImpl(String server, String name, int udp, int tudp) {
 		super();
 		this.server = server;
 		this.name = name;
 		UDP_PORT = udp;
+		T_UDP_PORT = tudp;
 		LOG_PATH=LOG_PATH+server+"/"+server+"_LOG.txt";
 		Utils.printFlight(server);
 		
@@ -46,6 +52,13 @@ class DFRSImpl extends DFRSPOA {
 				initServer();
 			}
 		}).start();
+		new Thread(new Runnable() {
+			
+			@Override
+			public void run() {
+				initTransactionServer();
+			}
+		}).start();
 	}
 	
 	public void setORB(ORB orb_val) {
@@ -54,10 +67,117 @@ class DFRSImpl extends DFRSPOA {
 	
 	@Override
 	public Result transferReservation(int passengerID, String currentCity, String otherCity) {
-		// TODO Auto-generated method stub
-		return null;
+		int port = 0;
+		if(DFRSServerMTL.NAME.equals(otherCity)) {
+			port = DFRSServerMTL.T_UDP_PORT_NUM;
+		} else if(DFRSServerWST.NAME.equals(otherCity)) {
+			port = DFRSServerWST.T_UDP_PORT_NUM;
+		} else if(DFRSServerNDL.NAME.equals(otherCity)) {
+			port = DFRSServerNDL.T_UDP_PORT_NUM;
+		}
+		boolean r = startTransferTransaction(passengerID, "localhost", port);
+		Result result = new Result();
+		result.success = r;
+		result.content = r?"Transfer Success, Thank you!":"Transfer Failed!";
+		
+		return result;
 	}
 
+	private void initTransactionServer() {
+		DatagramSocket aSocket = null;
+		try {
+			aSocket = new DatagramSocket(T_UDP_PORT);
+			// create socket at agreed port
+			byte[] buffer = new byte[1000];
+			while (true) {
+				DatagramPacket request = new DatagramPacket(buffer, buffer.length);
+				aSocket.receive(request);
+				
+				Object b= Utils.resolve(request.getData());
+				boolean result = false;
+				if(b != null) {
+					Ticket t = (Ticket) b;
+					TransferReservation.getInstance().addTransactionOperation(t.getRecordID()+"", new ITransaction() {
+
+						@Override
+						public void doCommit() {
+							t.setDeparture(name);
+							TicketData.getInstance().addTicket(server, t);
+						}
+
+						@Override
+						public void backCommit() {
+							TicketData.getInstance().removeTicket(server, t);
+						}
+						
+					});
+					result = TransferReservation.getInstance().doTransaction(t.getRecordID()+"");
+				} else {
+					result = false;
+				}
+				String re = result?"TRUE":"FALSE";
+				request.setData(re.getBytes());
+				DatagramPacket reply = new DatagramPacket(request.getData(), request.getLength(), request.getAddress(),
+						request.getPort());
+				aSocket.send(reply);
+			}
+		}catch (SocketException e){System.out.println("["+server+"]-"+"Socket: " + e.getMessage());
+		Log.i(LOG_PATH, "["+server+":"+T_UDP_PORT+"]-"+"Socket: " + e.getMessage());
+		}catch (IOException e) {System.out.println("["+server+"]-"+"IO: " + e.getMessage());
+		Log.i(LOG_PATH, "["+server+":"+T_UDP_PORT+"]-"+"IO: " + e.getMessage());
+		}finally {if(aSocket != null) aSocket.close();}
+	}
+	
+	private boolean startTransferTransaction(int passengerID, String ip, int port) {
+		DatagramSocket aSocket = null;
+		boolean result = false;
+		final Ticket t = TicketData.getInstance().getTicketRecord(server, passengerID);
+		if(t == null)
+			return result;
+		TransferReservation.getInstance().initTransaction(t.getRecordID()+"", new ITransaction() {
+
+			@Override
+			public void doCommit() {
+				TicketData.getInstance().removeTicket(server, t);
+			}
+
+			@Override
+			public void backCommit() {
+				TicketData.getInstance().addTicket(server, t);
+			}
+			
+		});
+		try {
+			aSocket = new DatagramSocket();
+			byte[] m = Utils.convert(t);
+			InetAddress aHost = InetAddress.getByName(ip);
+			DatagramPacket request = new DatagramPacket(m, m.length, aHost, port);
+			aSocket.send(request);
+			
+			Timer timer = new Timer();
+			timer.schedule(new TimerTask() {
+				public void run() {
+					TransferReservation.getInstance().removeTransaction(t.getRecordID()+"");
+				}
+			}, 2*1000);
+			
+			byte[] buffer = new byte[1000];
+			DatagramPacket reply = new DatagramPacket(buffer, buffer.length);
+			aSocket.receive(reply);
+			String receive = new String(reply.getData(), 0, reply.getLength()).trim();
+			if("TRUE".equals(receive)) {
+				result = true;
+			} else {
+				result = false;
+			}
+		}catch (SocketException e){System.out.println("["+server+"]-"+"Socket: " + e.getMessage());
+		Log.e(LOG_PATH, "["+server+":"+T_UDP_PORT+"]-"+"Socket: " + e.getMessage());
+		}catch (IOException e){System.out.println("["+server+"]-"+"IO: " + e.getMessage());
+		Log.e(LOG_PATH, "["+server+":"+T_UDP_PORT+"]-"+"IO: " + e.getMessage());
+		}finally {if(aSocket != null) aSocket.close();}
+		return result;
+	}
+	
 	private void initServer() {
 		DatagramSocket aSocket = null;
 		try {
@@ -83,14 +203,14 @@ class DFRSImpl extends DFRSPOA {
 				DatagramPacket reply = new DatagramPacket(request.getData(), request.getLength(), request.getAddress(),
 						request.getPort());
 				aSocket.send(reply);
-				String s = "["+server+"]-"+"Receive Require Request KEY: " + receive +" and Reply:" + re;
+				String s = "["+server+":"+UDP_PORT+"]-"+"Receive Require Request KEY: " + receive +" and Reply:" + re;
 				System.out.print("\n"+s);
 				Log.i(LOG_PATH, s);
 			}
 		}catch (SocketException e){System.out.println("["+server+"]-"+"Socket: " + e.getMessage());
-		Log.i(LOG_PATH, "["+server+"]-"+"Socket: " + e.getMessage());
+		Log.i(LOG_PATH, "["+server+":"+UDP_PORT+"]-"+"Socket: " + e.getMessage());
 		}catch (IOException e) {System.out.println("["+server+"]-"+"IO: " + e.getMessage());
-		Log.i(LOG_PATH, "["+server+"]-"+"IO: " + e.getMessage());
+		Log.i(LOG_PATH, "["+server+":"+UDP_PORT+"]-"+"IO: " + e.getMessage());
 		}finally {if(aSocket != null) aSocket.close();}
 	}
 	
@@ -117,7 +237,7 @@ class DFRSImpl extends DFRSPOA {
 	}
 	
 	@Override
-	public Result bookFlight(String firstName, String lastName, String address, String phone, String destination,
+	public synchronized Result bookFlight(String firstName, String lastName, String address, String phone, String destination,
 			String date, String ticketClass) {
 		String s = "["+server+"]-"+"Request Book Flight Order Passenger Info Is\n     -FirstName:"+firstName+"\n"
 				+"     -lastName:"+lastName +"\n"
@@ -146,8 +266,7 @@ class DFRSImpl extends DFRSPOA {
 		if(r) {
 			if(book!=null&book.sellTicket(ticketClass)) {
 				Ticket t = new Ticket(firstName, lastName, address, phone, destination, date, ticketClass, this.name);
-				String index = Character.toUpperCase(lastName.charAt(0)) + "" ;
-				TicketData.getInstance().addTicket(server, t, index);
+				TicketData.getInstance().addTicket(server, t);
 			} else {
 				r = false;
 				info = "Book Failed, We Didn't Have Enough "+ticketClass+" ticket.";

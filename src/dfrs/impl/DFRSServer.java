@@ -21,7 +21,7 @@ public class DFRSServer {
 		// initServer(args);
 	}
 
-	public void initServer(String args[], Properties props, String server, String name, int udp) {
+	public void initServer(String args[], Properties props, String server, String name, int udp, int tudp) {
 		try {
 			String s = "[" + server + "]-" + "DFRSServer ready and waiting ...";
 			System.out.println(s);
@@ -33,7 +33,7 @@ public class DFRSServer {
 			rootpoa.the_POAManager().activate();
 
 			// create servant and register it with the ORB
-			DFRSImpl helloImpl = new DFRSImpl(server, name, udp);
+			DFRSImpl helloImpl = new DFRSImpl(server, name, udp, tudp);
 			helloImpl.setORB(orb);
 
 			// get object reference from the servant

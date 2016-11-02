@@ -1,5 +1,6 @@
 package dfrs.client;
 
+import java.util.HashMap;
 import java.util.Properties;
 import java.util.Scanner;
 import java.util.regex.Matcher;
@@ -13,6 +14,8 @@ import dfrs.DFRS;
 import dfrs.DFRSHelper;
 import dfrs.Result;
 import dfrs.bean.Flight;
+import dfrs.bean.Ticket;
+import dfrs.database.TicketData;
 import dfrs.impl.DFRSServerMTL;
 import dfrs.impl.DFRSServerNDL;
 import dfrs.impl.DFRSServerWST;
@@ -21,7 +24,11 @@ import dfrs.utils.Utils;
 
 public class ManagerClient {
 	private static final String LOG_PATH = Log.LOG_DIR+"LOG_Manager"+"/";
+	private static final String[] CITY = {"Montreal", "Washington", "New Delhi"};
+	private static final String[] S_CITY = {"MTL", "WST", "NDL"};
 	private String managerName = "default";
+	private String server = "";
+	private String serverName = "";
 	private DFRS dfrsImpl;
 	
 	private void showMenu() {
@@ -236,17 +243,63 @@ public class ManagerClient {
 		showEditFlghtOptionMenu(userInput);
 	}
 
+	private String showTransferCityMenu(Ticket t) {
+		System.out.println("Please choose the city for transfer");
+		int j=1;
+		HashMap<String, String> map = new HashMap<String, String>();
+		for(int i=0;i<CITY.length;i++) {
+			
+			if(!CITY[i].equals(serverName)) {//&&!CITY[i].equals(t.getDestination())) {
+				System.out.println(j+"."+CITY[i]);
+				map.put(j+"", CITY[i]);
+				j++;
+			}
+		}
+		Scanner keyboard = new Scanner(System.in);
+		int input = validInputOption(keyboard, j-1);
+		return map.get(input+"");
+	}
+	
+	private void showTransferMenu() {
+		System.out.println("Please enter the passenger ID:");
+		Scanner keyboard = new Scanner(System.in);
+		boolean valid = false;
+		int userInput = 0;
+		Ticket t = null;
+		while (!valid) {
+			try {
+				userInput = keyboard.nextInt();
+//				t = TicketData.getInstance().getTicketRecord(server, userInput);
+//				if(t == null) {
+//					throw new Exception();
+//				}
+				valid = true;
+			} catch (Exception e) {
+				System.out.println("Invalid Input, please enter the passengerID:");
+				valid = false;
+				keyboard.nextLine();
+			}
+		}
+		String otherCity = showTransferCityMenu(t);
+		Result result = dfrsImpl.transferReservation(userInput, serverName, otherCity);
+		String s = "-"+managerName + " " + result.content;
+		Log.i(LOG_PATH+managerName+".txt", s);
+		System.out.println(result.content);
+	}
+	
 	private void showOptionMenu(Scanner keyboard) {
 		String m = "Please select your option (1-3)";
 		String m1 = "1. Get Booked Flight Count";
 		String m2 = "2. Edit Flight Record";
-		String m3 = "3. Exit";
+		String m3 = "3. Transfer Reservation";
+		String m4 = "4. Exit";
 		System.out.println(m);
 		System.out.println(m1);
 		System.out.println(m2);
 		System.out.println(m3);
+		System.out.println(m4);
 		String s = "-"+managerName + " Choose ";
-		int userChoice = validInputOption(keyboard, 3);
+		int userChoice = validInputOption(keyboard, 4);
 		switch (userChoice) {
 		case 1:
 			s+=m1;
@@ -260,6 +313,11 @@ public class ManagerClient {
 			break;
 		case 3:
 			s+=m3;
+			Log.i(LOG_PATH+managerName+".txt", s);
+			showTransferMenu();
+			break;
+		case 4:
+			s+=m4;
 			Log.i(LOG_PATH+managerName+".txt", s);
 			System.out.println("Have a nice day!");
 			keyboard.close();
@@ -322,6 +380,38 @@ public class ManagerClient {
 		return "";
 	}
 	
+	private String getServer(String input) {
+		String pat = "(MTL)\\d{4}" ;
+        if(Pattern.compile(pat).matcher(input).matches()) {
+        	return S_CITY[0];
+        }
+        pat = "(WST)\\d{4}" ;
+        if(Pattern.compile(pat).matcher(input).matches()) {
+        	return S_CITY[1];
+        }
+		pat = "(NDL)\\d{4}" ;
+		if(Pattern.compile(pat).matcher(input).matches()) {
+        	return S_CITY[2];
+        }
+		return "";
+	}
+	
+	private String getServerName(String input) {
+		String pat = "(MTL)\\d{4}" ;
+        if(Pattern.compile(pat).matcher(input).matches()) {
+        	return CITY[0];
+        }
+        pat = "(WST)\\d{4}" ;
+        if(Pattern.compile(pat).matcher(input).matches()) {
+        	return CITY[1];
+        }
+		pat = "(NDL)\\d{4}" ;
+		if(Pattern.compile(pat).matcher(input).matches()) {
+        	return CITY[2];
+        }
+		return "";
+	}
+	
 	private void initPage() {
 		String userInput = "";
 		Scanner keyboard = new Scanner(System.in);
@@ -344,6 +434,8 @@ public class ManagerClient {
 			}
 		}
 		managerName = userInput;
+		server = getServer(userInput);
+		serverName = getServerName(userInput);
 		if (initConnection(getServerPort(userInput))) {
 			showOptionMenu(keyboard);
 		} else {
