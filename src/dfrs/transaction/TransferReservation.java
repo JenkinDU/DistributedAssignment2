@@ -4,12 +4,16 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
+import dfrs.Result;
+
 public class TransferReservation {
 	private static TransferReservation instance;
 	private HashMap<String, List<ITransaction>> data;
+	private HashMap<String, Result> netPackage;
 	
 	private TransferReservation() {
 		data = new HashMap<String, List<ITransaction>>();
+		netPackage = new HashMap<String, Result>();
 	}
 
 	public static synchronized TransferReservation getInstance() {
@@ -40,8 +44,8 @@ public class TransferReservation {
 		}
 	}
 	
-	public boolean doTransaction(String id) {
-		boolean result = false;
+	public Result doTransaction(String id) {
+		Result result = new Result();
 		List<ITransaction> list = data.get(id);
 		if(list == null) {
 			return result;
@@ -50,19 +54,41 @@ public class TransferReservation {
 			for(ITransaction l:list) {
 				l.doCommit();
 			}
-			result = true;
+			result.success = removeTransaction(id);
+			if(!result.success) {
+				throw new Exception("Time out");
+			}
+			result.content = "Success";
 		} catch(Exception e) {
 			for(ITransaction l:list) {
 				l.backCommit();
 			}
-			result = false;
-		} finally {
-			data.remove(id);
-		}
+			result.success = false;
+			result.content = e.getMessage();
+		} 
+//		finally {
+//			data.remove(id);
+//		}
 		return result;
 	}
 	
-	public void removeTransaction(String id) {
-		data.remove(id);
+	public synchronized boolean removeTransaction(String id) {
+		if(data.containsKey(id)) {
+			data.remove(id);
+			return true;
+		}
+		return false;
+	}
+	
+	public Result popNetPackage(String key) {
+		if(key == null)
+			return null;
+		return netPackage.remove(key);
+	}
+	
+	public void pushNetPackage(String key, Result value) {
+		if(key == null || value == null)
+			 return;
+		netPackage.put(key, value);
 	}
 }

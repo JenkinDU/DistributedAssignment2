@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 
 import dfrs.bean.Flight;
+import dfrs.bean.Ticket;
 import dfrs.impl.DFRSServerMTL;
 import dfrs.impl.DFRSServerNDL;
 import dfrs.impl.DFRSServerWST;
@@ -62,6 +63,18 @@ public class FlightData {
 		return false;
 	}
 	
+	public Flight getFlightByTicket(String server, Ticket t) {
+		if(t == null)
+			return null;
+		ArrayList<Flight> flight = (ArrayList<Flight>)FlightData.getInstance().initData(server);
+		for(Flight f:flight) {
+			if(f.getDeparture().equals(t.getDeparture())&&f.getDestination().equals(t.getDestination())&&f.getDepartureDate().equals(t.getDepartureDate())) {
+				return f;
+			}
+		}
+		return null;
+	}
+	
 	private ArrayList<Flight> addInitFlight(String name) {
 		ArrayList<Flight> flight = new ArrayList<Flight>();
 		
@@ -77,6 +90,8 @@ public class FlightData {
 			f.setTotalFirstTickets(20);
 			f.setTotalEconomyTickets(300);
 			f.setRecordID(++recordID);
+			for(int i=0;i<10;i++)
+				f.sellTicket(Flight.FIRST_CLASS, true);
 			flight.add(f);
 			
 			f = new Flight();
@@ -89,6 +104,8 @@ public class FlightData {
 			f.setTotalFirstTickets(20);
 			f.setTotalEconomyTickets(300);
 			f.setRecordID(++recordID);
+			for(int i=0;i<10;i++)
+				f.sellTicket(Flight.BUSINESS_CLASS, true);
 			flight.add(f);
 		} else if(DFRSServerWST.SERVER_NAME.equals(name)) {
 			Flight f = new Flight();
@@ -101,6 +118,8 @@ public class FlightData {
 			f.setTotalFirstTickets(20);
 			f.setTotalEconomyTickets(300);
 			f.setRecordID(++recordID);
+			for(int i=0;i<10;i++)
+				f.sellTicket(Flight.FIRST_CLASS, true);
 			flight.add(f);
 			
 			f = new Flight();
@@ -113,6 +132,8 @@ public class FlightData {
 			f.setTotalFirstTickets(20);
 			f.setTotalEconomyTickets(300);
 			f.setRecordID(++recordID);
+			for(int i=0;i<10;i++)
+				f.sellTicket(Flight.BUSINESS_CLASS, true);
 			flight.add(f);
 		} else if(DFRSServerNDL.SERVER_NAME.equals(name)) {
 			Flight f = new Flight();
@@ -125,6 +146,8 @@ public class FlightData {
 			f.setTotalFirstTickets(20);
 			f.setTotalEconomyTickets(300);
 			f.setRecordID(++recordID);
+			for(int i=0;i<10;i++)
+				f.sellTicket(Flight.FIRST_CLASS, true);
 			flight.add(f);
 			
 			f = new Flight();
@@ -137,6 +160,8 @@ public class FlightData {
 			f.setTotalFirstTickets(20);
 			f.setTotalEconomyTickets(300);
 			f.setRecordID(++recordID);
+			for(int i=0;i<10;i++)
+				f.sellTicket(Flight.BUSINESS_CLASS, true);
 			flight.add(f);
 		}
 		

@@ -1,6 +1,6 @@
 package dfrs.transaction;
 
 public interface ITransaction {
-	void doCommit();
+	void doCommit() throws TransactionException ;
 	void backCommit();
 }

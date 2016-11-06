@@ -10,8 +10,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Timer;
-import java.util.TimerTask;
 
 import org.omg.CORBA.ORB;
 
@@ -22,11 +20,12 @@ import dfrs.bean.Ticket;
 import dfrs.database.FlightData;
 import dfrs.database.TicketData;
 import dfrs.transaction.ITransaction;
+import dfrs.transaction.TransactionException;
 import dfrs.transaction.TransferReservation;
 import dfrs.utils.Log;
 import dfrs.utils.Utils;
 
-class DFRSImpl extends DFRSPOA {
+public class DFRSImpl extends DFRSPOA {
 	
 	private ORB orb;
 	
@@ -67,6 +66,7 @@ class DFRSImpl extends DFRSPOA {
 	
 	@Override
 	public Result transferReservation(int passengerID, String currentCity, String otherCity) {
+		System.out.println("["+server+"]-"+passengerID+"-START--transferReservation,passengerID:"+passengerID+"[this:"+this.toString()+"]");
 		int port = 0;
 		if(DFRSServerMTL.NAME.equals(otherCity)) {
 			port = DFRSServerMTL.T_UDP_PORT_NUM;
@@ -75,11 +75,10 @@ class DFRSImpl extends DFRSPOA {
 		} else if(DFRSServerNDL.NAME.equals(otherCity)) {
 			port = DFRSServerNDL.T_UDP_PORT_NUM;
 		}
-		boolean r = startTransferTransaction(passengerID, "localhost", port);
-		Result result = new Result();
-		result.success = r;
-		result.content = r?"Transfer Success, Thank you!":"Transfer Failed!";
-		
+		Result result = startTransferTransaction(passengerID, otherCity, "localhost", port);
+		String s = "["+server+"]-"+passengerID+"-E N D--transferReservation,passengerID:"+passengerID+"["+result.success+":"+result.content+"]";
+		System.out.println(s);
+		Log.i(LOG_PATH, s);
 		return result;
 	}
 
@@ -93,29 +92,32 @@ class DFRSImpl extends DFRSPOA {
 				DatagramPacket request = new DatagramPacket(buffer, buffer.length);
 				aSocket.receive(request);
 				
-				Object b= Utils.resolve(request.getData());
+				Object b = Utils.resolve(request.getData());
 				boolean result = false;
+				String re = "";
 				if(b != null) {
 					Ticket t = (Ticket) b;
 					TransferReservation.getInstance().addTransactionOperation(t.getRecordID()+"", new ITransaction() {
 
 						@Override
-						public void doCommit() {
+						public void doCommit() throws TransactionException {
 							t.setDeparture(name);
-							TicketData.getInstance().addTicket(server, t);
+							TicketData.getInstance().sellTicket(server, t);
 						}
 
 						@Override
 						public void backCommit() {
-							TicketData.getInstance().removeTicket(server, t);
+							if(TicketData.getInstance().isExistTicket(server, t.getRecordID())) {
+								TicketData.getInstance().returnTicket(server, t.getRecordID());
+							}
 						}
-						
 					});
-					result = TransferReservation.getInstance().doTransaction(t.getRecordID()+"");
+					Result r = TransferReservation.getInstance().doTransaction(t.getRecordID()+"");
+					re = t.getRecordID()+":"+(result?"TRUE":"FALSE")+":"+r.content;
 				} else {
 					result = false;
+					re = "0:FALSE:Object Error";
 				}
-				String re = result?"TRUE":"FALSE";
 				request.setData(re.getBytes());
 				DatagramPacket reply = new DatagramPacket(request.getData(), request.getLength(), request.getAddress(),
 						request.getPort());
@@ -128,53 +130,116 @@ class DFRSImpl extends DFRSPOA {
 		}finally {if(aSocket != null) aSocket.close();}
 	}
 	
-	private boolean startTransferTransaction(int passengerID, String ip, int port) {
-		DatagramSocket aSocket = null;
-		boolean result = false;
+	private Result startTransferTransaction(int passengerID, String otherCity, String ip, int port) {
+		Result result = new Result();
+		result.success = false;
+		result.content = "ID "+passengerID+"-Transfer Failed!";
 		final Ticket t = TicketData.getInstance().getTicketRecord(server, passengerID);
-		if(t == null)
+		
+		if(t == null) {
+			result.success = false;
+			result.content = "ID "+passengerID+"-Transfer Failed! No passengerID";
 			return result;
-		TransferReservation.getInstance().initTransaction(t.getRecordID()+"", new ITransaction() {
+		}
+		if(otherCity==null||otherCity.equals(t.getDestination())) {
+			result.success = false;
+			result.content = "ID "+passengerID+"-Transfer Failed! Departure same with Destination";
+			return result;
+		}
+		final Flight f = FlightData.getInstance().getFlightByTicket(server, t);
+		boolean r = TransferReservation.getInstance().initTransaction(t.getRecordID()+"", new ITransaction() {
 
 			@Override
-			public void doCommit() {
-				TicketData.getInstance().removeTicket(server, t);
+			public void doCommit() throws TransactionException {
+				TicketData.getInstance().removeTicket(server, t.getRecordID());
 			}
 
 			@Override
 			public void backCommit() {
-				TicketData.getInstance().addTicket(server, t);
+				if(!TicketData.getInstance().isExistTicket(server, t.getRecordID())) {
+					TicketData.getInstance().addTicket(server, t);
+				}
 			}
-			
 		});
+		if(!r) {
+			result.success = false;
+			result.content = "ID "+passengerID+"-Transfer Failed! PassengerID is transfering now";
+			return result;
+		}
+		DatagramSocket aSocket = null;
 		try {
 			aSocket = new DatagramSocket();
 			byte[] m = Utils.convert(t);
 			InetAddress aHost = InetAddress.getByName(ip);
 			DatagramPacket request = new DatagramPacket(m, m.length, aHost, port);
 			aSocket.send(request);
-			
-			Timer timer = new Timer();
-			timer.schedule(new TimerTask() {
-				public void run() {
-					TransferReservation.getInstance().removeTransaction(t.getRecordID()+"");
-				}
-			}, 2*1000);
-			
+//			aSocket.close();
+//		} catch (SocketException e) {
+//			System.out.println("[" + server + "]-" + "Socket: " + e.getMessage());
+//			Log.e(LOG_PATH, "[" + server + ":" + T_UDP_PORT + "]-" + "Socket: " + e.getMessage());
+//		} catch (IOException e) {
+//			System.out.println("[" + server + "]-" + "IO: " + e.getMessage());
+//			Log.e(LOG_PATH, "[" + server + ":" + T_UDP_PORT + "]-" + "IO: " + e.getMessage());
+//		}
+//
+//		try {
+//			aSocket = new DatagramSocket(port + 1);
 			byte[] buffer = new byte[1000];
-			DatagramPacket reply = new DatagramPacket(buffer, buffer.length);
-			aSocket.receive(reply);
-			String receive = new String(reply.getData(), 0, reply.getLength()).trim();
-			if("TRUE".equals(receive)) {
-				result = true;
-			} else {
-				result = false;
+			Result v = null;
+			while (v==null) {
+				DatagramPacket reply = new DatagramPacket(buffer, buffer.length);
+				aSocket.setSoTimeout(2 * 1000);
+				aSocket.receive(reply);
+			
+				String receive = new String(reply.getData(), 0, reply.getLength()).trim();
+				if (receive != null) {
+					String re[] = receive.split(":");
+					if(re.length == 3) {
+						boolean s = false;
+						if ("TRUE".equals(re[1])) {
+							s = true;
+						} else {
+							s = false;
+						}
+						TransferReservation.getInstance().pushNetPackage(re[0], new Result(s, re[2]));
+					}
+				}
+				v = TransferReservation.getInstance().popNetPackage(passengerID+"");
+				if(v != null) {
+					if (v.success) {
+						result.success = true;
+						result.content = "ID " + passengerID + "-Transfer Success!";
+						f.sellTicket(t.getTicketClass(), false);
+					} else {
+						TransferReservation.getInstance().removeTransaction(passengerID + "");
+						result.success = false;
+						result.content = "ID " + passengerID + "-Transfer Failed! " + v.content;
+					}
+				}
 			}
-		}catch (SocketException e){System.out.println("["+server+"]-"+"Socket: " + e.getMessage());
-		Log.e(LOG_PATH, "["+server+":"+T_UDP_PORT+"]-"+"Socket: " + e.getMessage());
-		}catch (IOException e){System.out.println("["+server+"]-"+"IO: " + e.getMessage());
-		Log.e(LOG_PATH, "["+server+":"+T_UDP_PORT+"]-"+"IO: " + e.getMessage());
-		}finally {if(aSocket != null) aSocket.close();}
+		} catch (Exception e) {
+			result.success = !TransferReservation.getInstance().removeTransaction(passengerID + "");
+			if (result.success) {
+				result.content = "ID " + passengerID + "-Transfer Success!";
+				f.sellTicket(t.getTicketClass(), false);
+			} else {
+				result.content = "ID " + passengerID + "-Transfer Failed! " + e.getMessage();
+			}
+//		} catch (SocketException e) {
+//			result.success = false;
+//			result.content = "ID " + passengerID + "-Transfer Failed! "+"Socket: " + e.getMessage();
+//			System.out.println("[" + server + "]-" + "Socket: " + e.getMessage());
+//			Log.e(LOG_PATH, "[" + server + ":" + T_UDP_PORT + "]-" + "Socket: " + e.getMessage());
+//		} catch (IOException e) {
+//			result.success = false;
+//			result.content = "ID " + passengerID + "-Transfer Failed! "+"IO: " + e.getMessage();
+//			System.out.println("[" + server + "]-" + "IO: " + e.getMessage());
+//			Log.e(LOG_PATH, "[" + server + ":" + T_UDP_PORT + "]-" + "IO: " + e.getMessage());
+		} finally {
+			if (aSocket != null)
+				aSocket.close();
+		}
+
 		return result;
 	}
 	
@@ -252,28 +317,34 @@ class DFRSImpl extends DFRSPOA {
 		Result result = new Result();
 		boolean r = false;
 		String info = "Book Success, Thank you!";
-		Flight book = null;
-		for(Flight f:flight) {
-			if(f.getDeparture().equals(this.name)&&f.getDestination().equals(destination)&&f.getDepartureDate().equals(date)) {
-				book = f;
-				r = true;
-				s = "     -Find Flight From "+this.name+" To "+destination+" On "+date;
-				System.out.println(s);
-				Log.i(LOG_PATH, s);
-				break;
-			}
+//		Flight book = null;
+		try {
+			Ticket t = new Ticket(firstName, lastName, address, phone, destination, date, ticketClass, this.name);
+			TicketData.getInstance().sellTicket(server, t);
+		} catch(TransactionException e) {
+			info = "Book Failed, "+e.getMessage();
 		}
-		if(r) {
-			if(book!=null&book.sellTicket(ticketClass)) {
-				Ticket t = new Ticket(firstName, lastName, address, phone, destination, date, ticketClass, this.name);
-				TicketData.getInstance().addTicket(server, t);
-			} else {
-				r = false;
-				info = "Book Failed, We Didn't Have Enough "+ticketClass+" ticket.";
-			}
-		} else {
-			info = "Book Failed, We Didn't Have This Ticket.";
-		}
+//		for(Flight f:flight) {
+//			if(f.getDeparture().equals(this.name)&&f.getDestination().equals(destination)&&f.getDepartureDate().equals(date)) {
+//				book = f;
+//				r = true;
+//				s = "     -Find Flight From "+this.name+" To "+destination+" On "+date;
+//				System.out.println(s);
+//				Log.i(LOG_PATH, s);
+//				break;
+//			}
+//		}
+//		if(r) {
+//			if(book!=null&book.sellTicket(ticketClass)) {
+//				Ticket t = new Ticket(firstName, lastName, address, phone, destination, date, ticketClass, this.name);
+//				TicketData.getInstance().addTicket(server, t);
+//			} else {
+//				r = false;
+//				info = "Book Failed, We Didn't Have Enough "+ticketClass+" ticket.";
+//			}
+//		} else {
+//			info = "Book Failed, We Didn't Have This Ticket.";
+//		}
 		s = "     -"+info;
 		System.out.println(s);
 		Log.i(LOG_PATH, s);
