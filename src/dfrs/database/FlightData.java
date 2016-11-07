@@ -86,12 +86,12 @@ public class FlightData {
 			f.setDestination("Washington");
 			f.setDepartureDate("20161010");
 			f.setAchieveDate("20161011");
-			f.setTotalBusinessTickets(50);
-			f.setTotalFirstTickets(20);
-			f.setTotalEconomyTickets(300);
+			f.setTotalBusinessTickets(100);
+			f.setTotalFirstTickets(100);
+			f.setTotalEconomyTickets(100);
 			f.setRecordID(++recordID);
-			for(int i=0;i<10;i++)
-				f.sellTicket(Flight.FIRST_CLASS, true);
+//			for(int i=0;i<10;i++)
+//				f.sellTicket(Flight.FIRST_CLASS, true);
 			flight.add(f);
 			
 			f = new Flight();
@@ -99,69 +99,69 @@ public class FlightData {
 			f.setDeparture("Montreal");
 			f.setDestination("New Delhi");
 			f.setDepartureDate("20161010");
-			f.setAchieveDate("20161012");
-			f.setTotalBusinessTickets(50);
-			f.setTotalFirstTickets(20);
-			f.setTotalEconomyTickets(300);
+			f.setAchieveDate("20161011");
+			f.setTotalBusinessTickets(100);
+			f.setTotalFirstTickets(100);
+			f.setTotalEconomyTickets(100);
 			f.setRecordID(++recordID);
-			for(int i=0;i<10;i++)
-				f.sellTicket(Flight.BUSINESS_CLASS, true);
+//			for(int i=0;i<10;i++)
+//				f.sellTicket(Flight.BUSINESS_CLASS, true);
 			flight.add(f);
 		} else if(DFRSServerWST.SERVER_NAME.equals(name)) {
 			Flight f = new Flight();
 			f.setFlightName("CW 101");
 			f.setDeparture("Washington");
 			f.setDestination("Montreal");
-			f.setDepartureDate("20161011");
-			f.setAchieveDate("20161012");
-			f.setTotalBusinessTickets(50);
-			f.setTotalFirstTickets(20);
-			f.setTotalEconomyTickets(300);
+			f.setDepartureDate("20161010");
+			f.setAchieveDate("20161011");
+			f.setTotalBusinessTickets(100);
+			f.setTotalFirstTickets(100);
+			f.setTotalEconomyTickets(100);
 			f.setRecordID(++recordID);
-			for(int i=0;i<10;i++)
-				f.sellTicket(Flight.FIRST_CLASS, true);
+//			for(int i=0;i<10;i++)
+//				f.sellTicket(Flight.FIRST_CLASS, true);
 			flight.add(f);
 			
 			f = new Flight();
 			f.setFlightName("CW 201");
 			f.setDeparture("Washington");
 			f.setDestination("New Delhi");
-			f.setDepartureDate("20161011");
-			f.setAchieveDate("20161012");
-			f.setTotalBusinessTickets(50);
-			f.setTotalFirstTickets(20);
-			f.setTotalEconomyTickets(300);
+			f.setDepartureDate("20161010");
+			f.setAchieveDate("20161011");
+			f.setTotalBusinessTickets(100);
+			f.setTotalFirstTickets(100);
+			f.setTotalEconomyTickets(100);
 			f.setRecordID(++recordID);
-			for(int i=0;i<10;i++)
-				f.sellTicket(Flight.BUSINESS_CLASS, true);
+//			for(int i=0;i<10;i++)
+//				f.sellTicket(Flight.BUSINESS_CLASS, true);
 			flight.add(f);
 		} else if(DFRSServerNDL.SERVER_NAME.equals(name)) {
 			Flight f = new Flight();
 			f.setFlightName("CN 101");
 			f.setDeparture("New Delhi");
 			f.setDestination("Washington");
-			f.setDepartureDate("20161012");
-			f.setAchieveDate("20161013");
-			f.setTotalBusinessTickets(50);
-			f.setTotalFirstTickets(20);
-			f.setTotalEconomyTickets(300);
+			f.setDepartureDate("20161010");
+			f.setAchieveDate("20161011");
+			f.setTotalBusinessTickets(100);
+			f.setTotalFirstTickets(100);
+			f.setTotalEconomyTickets(100);
 			f.setRecordID(++recordID);
-			for(int i=0;i<10;i++)
-				f.sellTicket(Flight.FIRST_CLASS, true);
+//			for(int i=0;i<10;i++)
+//				f.sellTicket(Flight.FIRST_CLASS, true);
 			flight.add(f);
 			
 			f = new Flight();
 			f.setFlightName("CN 201");
 			f.setDeparture("New Delhi");
 			f.setDestination("Montreal");
-			f.setDepartureDate("20161012");
-			f.setAchieveDate("20161013");
-			f.setTotalBusinessTickets(50);
-			f.setTotalFirstTickets(20);
-			f.setTotalEconomyTickets(300);
+			f.setDepartureDate("20161010");
+			f.setAchieveDate("20161011");
+			f.setTotalBusinessTickets(100);
+			f.setTotalFirstTickets(100);
+			f.setTotalEconomyTickets(100);
 			f.setRecordID(++recordID);
-			for(int i=0;i<10;i++)
-				f.sellTicket(Flight.BUSINESS_CLASS, true);
+//			for(int i=0;i<10;i++)
+//				f.sellTicket(Flight.BUSINESS_CLASS, true);
 			flight.add(f);
 		}
 		

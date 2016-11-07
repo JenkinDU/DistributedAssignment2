@@ -74,69 +74,56 @@ public class Flight {
 		return totalBusinessTickets;
 	}
 
-	public void setTotalBusinessTickets(int totalBusinessTickets) {
+	public synchronized boolean setTotalBusinessTickets(int totalBusinessTickets) {
 		int add = totalBusinessTickets - this.totalBusinessTickets;
-		this.totalBusinessTickets = totalBusinessTickets;
-		editBalanceBusinessTickets(add);
-//		this.balanceBusinessTickets += add;
+		if(editBalanceBusinessTickets(add)) {
+			this.totalBusinessTickets = totalBusinessTickets;
+			return true;
+		}
+		return false;
 	}
 
 	public int getTotalFirstTickets() {
 		return totalFirstTickets;
 	}
 
-	public void setTotalFirstTickets(int totalFirstTickets) {
+	public synchronized boolean setTotalFirstTickets(int totalFirstTickets) {
 		int add = totalFirstTickets - this.totalFirstTickets;
-		this.totalFirstTickets = totalFirstTickets;
-		editBalanceFirstTickets(add);
-//		this.balanceFirstTickets += add;
+		if(editBalanceFirstTickets(add)) {
+			this.totalFirstTickets = totalFirstTickets;
+			return true;
+		}
+		return false;
 	}
 
 	public int getTotalEconomyTickets() {
 		return totalEconomyTickets;
 	}
 
-	public void setTotalEconomyTickets(int totalEconomyTickets) {
+	public synchronized boolean setTotalEconomyTickets(int totalEconomyTickets) {
 		int add = totalEconomyTickets - this.totalEconomyTickets;
-		this.totalEconomyTickets = totalEconomyTickets;
-		editBalanceEconomyTickets(add);
-//		this.balanceEconomyTickets += add;
+		if(editBalanceEconomyTickets(add)) {
+			this.totalEconomyTickets = totalEconomyTickets;
+			return true;
+		}
+		return false;
 	}
 	
 	public synchronized boolean sellTicket(String type, boolean sell) {
-		if(!sell) {
-			if (BUSINESS_CLASS.equals(type)) {
-				editBalanceBusinessTickets(1);
-//				balanceBusinessTickets++;
-			} else if (FIRST_CLASS.equals(type)) {
-				editBalanceFirstTickets(1);
-//				balanceFirstTickets++;
-			} else if (ECONOMY_CLASS.equals(type)) {
-				editBalanceEconomyTickets(1);
-//				balanceEconomyTickets++;
-			}
+		int add = 0;
+		if(sell) {
+			add = -1;
 		} else {
-			if (BUSINESS_CLASS.equals(type)) {
-				if (balanceBusinessTickets <= 0)
-					return false;
-				else
-					editBalanceBusinessTickets(-1);
-//					balanceBusinessTickets--;
-			} else if (FIRST_CLASS.equals(type)) {
-				if (balanceFirstTickets <= 0)
-					return false;
-				else
-					editBalanceFirstTickets(-1);
-//					balanceFirstTickets--;
-			} else if (ECONOMY_CLASS.equals(type)) {
-				if (balanceEconomyTickets <= 0)
-					return false;
-				else
-					editBalanceEconomyTickets(-1);
-//					balanceEconomyTickets--;
-			}
+			add = 1;
 		}
-		return true;
+		if (BUSINESS_CLASS.equals(type)) {
+			return editBalanceBusinessTickets(add);
+		} else if (FIRST_CLASS.equals(type)) {
+			return editBalanceFirstTickets(add);
+		} else if (ECONOMY_CLASS.equals(type)) {
+			return editBalanceEconomyTickets(add);
+		}
+		return false;
 	}
 	
 	public int getRecordID() {
@@ -151,24 +138,33 @@ public class Flight {
 		return balanceBusinessTickets;
 	}
 
-	private synchronized void editBalanceBusinessTickets(int v) {
+	private synchronized boolean editBalanceBusinessTickets(int v) {
+		if(this.balanceBusinessTickets + v < 0)
+			return false;
 		this.balanceBusinessTickets += v;
+		return true;
 	}
 
 	public int getBalanceFirstTickets() {
 		return balanceFirstTickets;
 	}
 
-	private synchronized void editBalanceFirstTickets(int v) {
+	private synchronized boolean editBalanceFirstTickets(int v) {
+		if(this.balanceFirstTickets + v < 0)
+			return false;
 		this.balanceFirstTickets += v;
+		return true;
 	}
 
 	public int getBalanceEconomyTickets() {
 		return balanceEconomyTickets;
 	}
 
-	private synchronized void editBalanceEconomyTickets(int v) {
+	private synchronized boolean editBalanceEconomyTickets(int v) {
+		if(this.balanceEconomyTickets + v < 0)
+			return false;
 		this.balanceEconomyTickets += v;
+		return true;
 	}
 
 	@Override

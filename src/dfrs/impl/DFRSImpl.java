@@ -66,7 +66,7 @@ public class DFRSImpl extends DFRSPOA {
 	
 	@Override
 	public Result transferReservation(int passengerID, String currentCity, String otherCity) {
-		System.out.println("["+server+"]-"+passengerID+"-START--transferReservation,passengerID:"+passengerID+"[this:"+this.toString()+"]");
+//		System.out.println("["+server+"]-"+passengerID+"-START--transferReservation,passengerID:"+passengerID+"[this:"+this.toString()+"]");
 		int port = 0;
 		if(DFRSServerMTL.NAME.equals(otherCity)) {
 			port = DFRSServerMTL.T_UDP_PORT_NUM;
@@ -76,7 +76,7 @@ public class DFRSImpl extends DFRSPOA {
 			port = DFRSServerNDL.T_UDP_PORT_NUM;
 		}
 		Result result = startTransferTransaction(passengerID, otherCity, "localhost", port);
-		String s = "["+server+"]-"+passengerID+"-E N D--transferReservation,passengerID:"+passengerID+"["+result.success+":"+result.content+"]";
+		String s = "["+server+"]-ID:"+passengerID+" transfer departure from "+currentCity+" to "+otherCity+"["+result.success+":"+result.content+"]";
 		System.out.println(s);
 		Log.i(LOG_PATH, s);
 		return result;
@@ -113,7 +113,7 @@ public class DFRSImpl extends DFRSPOA {
 						}
 					});
 					Result r = TransferReservation.getInstance().doTransaction(t.getRecordID()+"");
-					re = t.getRecordID()+":"+(result?"TRUE":"FALSE")+":"+r.content;
+					re = t.getRecordID()+":"+(r.success?"TRUE":"FALSE")+":"+r.content;
 				} else {
 					result = false;
 					re = "0:FALSE:Object Error";
@@ -173,17 +173,7 @@ public class DFRSImpl extends DFRSPOA {
 			InetAddress aHost = InetAddress.getByName(ip);
 			DatagramPacket request = new DatagramPacket(m, m.length, aHost, port);
 			aSocket.send(request);
-//			aSocket.close();
-//		} catch (SocketException e) {
-//			System.out.println("[" + server + "]-" + "Socket: " + e.getMessage());
-//			Log.e(LOG_PATH, "[" + server + ":" + T_UDP_PORT + "]-" + "Socket: " + e.getMessage());
-//		} catch (IOException e) {
-//			System.out.println("[" + server + "]-" + "IO: " + e.getMessage());
-//			Log.e(LOG_PATH, "[" + server + ":" + T_UDP_PORT + "]-" + "IO: " + e.getMessage());
-//		}
-//
-//		try {
-//			aSocket = new DatagramSocket(port + 1);
+			
 			byte[] buffer = new byte[1000];
 			Result v = null;
 			while (v==null) {
@@ -313,38 +303,15 @@ public class DFRSImpl extends DFRSPOA {
 				+"     -ticketClass:"+ticketClass;
 		System.out.println(s);
 		Log.i(LOG_PATH, s);
-		ArrayList<Flight> flight = (ArrayList<Flight>)FlightData.getInstance().initData(server);
 		Result result = new Result();
 		boolean r = false;
 		String info = "Book Success, Thank you!";
-//		Flight book = null;
 		try {
 			Ticket t = new Ticket(firstName, lastName, address, phone, destination, date, ticketClass, this.name);
-			TicketData.getInstance().sellTicket(server, t);
+			r = TicketData.getInstance().sellTicket(server, t);
 		} catch(TransactionException e) {
 			info = "Book Failed, "+e.getMessage();
 		}
-//		for(Flight f:flight) {
-//			if(f.getDeparture().equals(this.name)&&f.getDestination().equals(destination)&&f.getDepartureDate().equals(date)) {
-//				book = f;
-//				r = true;
-//				s = "     -Find Flight From "+this.name+" To "+destination+" On "+date;
-//				System.out.println(s);
-//				Log.i(LOG_PATH, s);
-//				break;
-//			}
-//		}
-//		if(r) {
-//			if(book!=null&book.sellTicket(ticketClass)) {
-//				Ticket t = new Ticket(firstName, lastName, address, phone, destination, date, ticketClass, this.name);
-//				TicketData.getInstance().addTicket(server, t);
-//			} else {
-//				r = false;
-//				info = "Book Failed, We Didn't Have Enough "+ticketClass+" ticket.";
-//			}
-//		} else {
-//			info = "Book Failed, We Didn't Have This Ticket.";
-//		}
 		s = "     -"+info;
 		System.out.println(s);
 		Log.i(LOG_PATH, s);
@@ -381,7 +348,7 @@ public class DFRSImpl extends DFRSPOA {
 		return value;
 	}
 
-	private int getRecordTypeCount(String recordType) {
+	private synchronized int getRecordTypeCount(String recordType) {
 		HashMap<String,List<Ticket>> tickets = TicketData.getInstance().initData(server);
 		Iterator iter = tickets.entrySet().iterator();
 		int count = 0;
@@ -389,15 +356,19 @@ public class DFRSImpl extends DFRSPOA {
 			Map.Entry entry = (Map.Entry) iter.next();
 			Object key = entry.getKey();
 			ArrayList<Ticket> value = (ArrayList<Ticket>)entry.getValue();
-			for(Ticket f:value) {
-				if(f!=null) {
-					if (!recordType.equals(Flight.ALL_CLASS)) {
-						if (recordType.equals(f.getTicketClass())) {
+			Iterator<Ticket> i = value.iterator();
+			while (i.hasNext()) {
+				Ticket f = i.next();
+				if (f != null) {
+					if(f!=null) {
+						if (!recordType.equals(Flight.ALL_CLASS)) {
+							if (recordType.equals(f.getTicketClass())) {
+								count++;
+							}
+						} else {
 							count++;
-						}
-					} else {
-						count++;
-					 }
+						 }
+					}
 				}
 			}
 		}
@@ -446,7 +417,7 @@ public class DFRSImpl extends DFRSPOA {
 						f.setTotalFirstTickets(Integer.valueOf(newValue));
 						r = true;
 					} else {
-						info = "Edit Flight Record Failed, Because new seats number less than booked number " + old;
+						info = "Edit Flight Record Failed, Because new seats number "+newValue+" less than booked number " + old;
 					}
 				} else if(Flight.B_SEATS.equals(fieldName)) {
 					int old = f.getTotalBusinessTickets()-f.getBalanceBusinessTickets();//getRecordTypeCount(Flight.B_SEATS);
@@ -454,7 +425,7 @@ public class DFRSImpl extends DFRSPOA {
 						f.setTotalBusinessTickets(Integer.valueOf(newValue));
 						r = true;
 					} else {
-						info = "Edit Flight Record Failed, Because new seats number less than booked number" + old;
+						info = "Edit Flight Record Failed, Because new seats number "+newValue+" less than booked number " + old;
 					}
 				} else if(Flight.E_SEATS.equals(fieldName)) {
 					int old = f.getTotalEconomyTickets()-f.getBalanceEconomyTickets();//getRecordTypeCount(Flight.E_SEATS);
@@ -462,7 +433,7 @@ public class DFRSImpl extends DFRSPOA {
 						f.setTotalEconomyTickets(Integer.valueOf(newValue));
 						r = true;
 					} else {
-						info = "Edit Flight Record Failed, Because new seats number less than booked number" + old;
+						info = "Edit Flight Record Failed, Because new seats number "+newValue+" less than booked number " + old;
 					}
 				}
 				if(r) {
@@ -506,6 +477,17 @@ public class DFRSImpl extends DFRSPOA {
 		
 		System.out.println("     -"+info);
 		Log.i(LOG_PATH, "["+server+"]-"+info);
+		return result;
+	}
+
+	@Override
+	public String getAllFlightInfo() {
+		String result = "";
+		ArrayList<Flight> flight = (ArrayList<Flight>)FlightData.getInstance().initData(server);
+		for(Flight f:flight) {
+			result+=f.toString();
+			result+="\n";
+		}
 		return result;
 	}
   

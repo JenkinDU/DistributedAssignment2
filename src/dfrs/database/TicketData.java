@@ -34,7 +34,7 @@ public class TicketData {
 		if (o == null) {
 			o = new HashMap<String, List<Ticket>>();
 			data.put(name, o);
-			addInitTicket(name);
+//			addInitTicket(name);
 		}
 		return data.get(name);
 	}
@@ -148,24 +148,31 @@ public class TicketData {
 		Ticket t = getTicketRecord(server, id);
 		if(t == null)
 			return false;
-		String index = Character.toUpperCase(t.getLastName().charAt(0)) + "" ;
-		HashMap<String, List<Ticket>> o = data.get(server);
-		ArrayList<Ticket> list = (ArrayList<Ticket>) o.get(index);
-		for(Ticket l:list) {
-			if(t.equals(l))
-				return true;
-		}
-		return false;
+//		String index = Character.toUpperCase(t.getLastName().charAt(0)) + "" ;
+//		HashMap<String, List<Ticket>> o = data.get(server);
+//		ArrayList<Ticket> list = (ArrayList<Ticket>) o.get(index);
+//		Iterator<Ticket> i = list.iterator();
+//		while (i.hasNext()) {
+//			Ticket f = i.next();
+//			if (f != null) {
+//				if(t.equals(f))
+//					return true;
+//			}
+//		}
+		return true;
 	}
 	
-	public Ticket getTicketRecord(String server, int id) {
+	public synchronized Ticket getTicketRecord(String server, int id) {
 		HashMap<String, List<Ticket>> o = data.get(server);
 		Iterator iter = o.entrySet().iterator();
 		while (iter.hasNext()) {
 			Map.Entry entry = (Map.Entry) iter.next();
 			Object key = entry.getKey();
 			ArrayList<Ticket> value = (ArrayList<Ticket>) entry.getValue();
-			for (Ticket f : value) {
+			
+			Iterator<Ticket> i = value.iterator();
+			while (i.hasNext()) {
+				Ticket f = i.next();
 				if (f != null) {
 					if (id == f.getRecordID()) {
 						return f;

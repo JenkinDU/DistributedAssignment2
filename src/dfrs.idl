@@ -10,5 +10,6 @@ module dfrs {
   		Result editFlightRecord(in long recordID, in string fieldName, in string newValue);
   		Result bookFlight(in string firstName, in string lastName, in string address, 
 							in string phone, in string destination, in string date, in string ticketClass);
+		string getAllFlightInfo();
   	};
 };

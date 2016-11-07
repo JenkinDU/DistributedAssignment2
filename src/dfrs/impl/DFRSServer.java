@@ -25,6 +25,8 @@ public class DFRSServer {
 		try {
 			String s = "[" + server + "]-" + "DFRSServer ready and waiting ...";
 			System.out.println(s);
+			FlightData.getInstance().initData(server);
+			TicketData.getInstance().initData(server);
 			// create and initialize the ORB
 			ORB orb = ORB.init(args, props);
 
@@ -54,8 +56,6 @@ public class DFRSServer {
 			ncRef.rebind(path, href);
 
 			Log.createLogDir(Log.LOG_DIR + "LOG_" + server + "/");
-			FlightData.getInstance().initData(server);
-			TicketData.getInstance().initData(server);
 
 			Log.i(Log.LOG_DIR + "LOG_" + server + "/" + server + "_LOG.txt", s);
 
